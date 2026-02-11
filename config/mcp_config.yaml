@@ -1,0 +1,382 @@
+# MCP Server Configuration for Academic Database Access
+
+mcp_servers:
+  semantic_scholar:
+    enabled: true
+    name: "Semantic Scholar MCP Server"
+    base_url: "https://api.semanticscholar.org/graph/v1"
+    api_version: "v1"
+    authentication:
+      type: "api_key"
+      key_env_var: "SEMANTIC_SCHOLAR_API_KEY"
+      header_name: "x-api-key"
+
+    capabilities:
+      - paper_search
+      - paper_details
+      - citations
+      - references
+      - author_info
+      - recommendations
+
+    endpoints:
+      search: "/paper/search"
+      paper_details: "/paper/{paper_id}"
+      bulk_details: "/paper/batch"
+      citations: "/paper/{paper_id}/citations"
+      references: "/paper/{paper_id}/references"
+      author: "/author/{author_id}"
+
+    parameters:
+      fields: [
+        "paperId",
+        "title",
+        "abstract",
+        "year",
+        "authors",
+        "citationCount",
+        "referenceCount",
+        "venue",
+        "publicationDate",
+        "journal",
+        "externalIds",
+        "url"
+      ]
+      default_limit: 100
+      max_limit: 1000
+
+    rate_limits:
+      requests_per_second: 10
+      requests_per_day: 10000
+      burst: 100
+
+    retry_policy:
+      max_retries: 3
+      backoff_factor: 2
+      retry_on_status: [429, 500, 502, 503, 504]
+
+    filters:
+      year_from: 2019  # 6 years ago default
+      year_to: 2025
+      min_citations: 0
+      publication_types: ["JournalArticle", "Conference"]
+      venues: []  # Empty means all venues
+
+    timeout: 30
+
+  arxiv:
+    enabled: true
+    name: "arXiv MCP Server"
+    base_url: "http://export.arxiv.org/api"
+    api_version: "query"
+    authentication:
+      type: "none"  # arXiv doesn't require API key for basic access
+
+    capabilities:
+      - paper_search
+      - paper_details
+      - metadata_retrieval
+      - pdf_access
+
+    endpoints:
+      search: "/query"
+      atom_feed: "/atom"
+
+    parameters:
+      max_results: 100
+      start: 0
+      sort_by: "relevance"  # relevance, lastUpdatedDate, submittedDate
+      sort_order: "descending"
+
+    search_fields:
+      - "ti"  # Title
+      - "au"  # Author
+      - "abs"  # Abstract
+      - "cat"  # Category
+      - "all"  # All fields
+
+    categories:
+      cs: ["cs.AI", "cs.LG", "cs.CL", "cs.CV", "cs.NE"]
+      stat: ["stat.ML"]
+      math: ["math.ST"]
+      q-bio: ["q-bio.QM", "q-bio.NC"]
+
+    rate_limits:
+      requests_per_second: 3
+      requests_per_minute: 30
+      delay_between_requests: 3
+
+    retry_policy:
+      max_retries: 3
+      backoff_factor: 2
+      retry_on_status: [503]
+
+    timeout: 60
+
+  frontiers:
+    enabled: false
+    name: "Frontiers MCP Server"
+    base_url: "https://api.frontiersin.org"
+    api_version: "v1"
+    authentication:
+      type: "api_key"
+      key_env_var: "FRONTIERS_API_KEY"
+      header_name: "Authorization"
+      prefix: "Bearer"
+
+    capabilities:
+      - article_search
+      - article_details
+      - journal_listing
+      - topic_discovery
+
+    endpoints:
+      search: "/v1/articles"
+      article: "/v1/articles/{article_id}"
+      journals: "/v1/journals"
+      topics: "/v1/research-topics"
+
+    parameters:
+      fields: [
+        "id",
+        "title",
+        "abstract",
+        "authors",
+        "journal",
+        "publicationDate",
+        "doi",
+        "keywords",
+        "citations"
+      ]
+      default_limit: 50
+      max_limit: 200
+
+    filters:
+      open_access_only: true
+      peer_reviewed: true
+      article_types: ["Original Research", "Review", "Systematic Review"]
+
+    rate_limits:
+      requests_per_second: 5
+      requests_per_minute: 100
+
+    retry_policy:
+      max_retries: 3
+      backoff_factor: 1.5
+
+    timeout: 30
+
+  pubmed:
+    enabled: false  # Enable if needed
+    name: "PubMed MCP Server"
+    base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+    api_version: "efetch.fcgi"
+    authentication:
+      type: "api_key"
+      key_env_var: "PUBMED_API_KEY"
+      parameter_name: "api_key"
+
+    capabilities:
+      - paper_search
+      - paper_details
+      - citation_network
+
+    endpoints:
+      search: "/esearch.fcgi"
+      fetch: "/efetch.fcgi"
+      summary: "/esummary.fcgi"
+
+    parameters:
+      db: "pubmed"
+      retmode: "xml"
+      retmax: 100
+
+    rate_limits:
+      requests_per_second: 10  # With API key
+      requests_per_second_no_key: 3
+
+    timeout: 30
+
+  crossref:
+    enabled: true  # Enable for DOI resolution
+    name: "Crossref MCP Server"
+    base_url: "https://api.crossref.org"
+    api_version: "v1"
+    authentication:
+      type: "none"  # Polite pool requires email in User-Agent
+      mailto: "your-email@example.com"
+
+    capabilities:
+      - doi_resolution
+      - metadata_retrieval
+      - citation_data
+
+    endpoints:
+      works: "/works"
+      work: "/works/{doi}"
+
+    rate_limits:
+      requests_per_second: 50  # Polite pool
+
+    timeout: 30
+
+  papers_with_code:
+    enabled: true
+    name: "Papers With Code MCP Server"
+    base_url: "https://paperswithcode.com/api/v1"
+    api_version: "v1"
+    authentication:
+      type: "none"  # Free API, no authentication required
+
+    capabilities:
+      - paper_search
+      - paper_details
+      - code_repositories
+      - sota_results
+      - methods
+      - datasets
+      - tasks
+
+    endpoints:
+      papers: "/papers/"
+      paper: "/papers/{paper_id}/"
+      repositories: "/papers/{paper_id}/repositories/"
+      methods: "/methods/"
+      tasks: "/tasks/"
+      datasets: "/datasets/"
+      evaluations: "/evaluations/"
+
+    parameters:
+      items_per_page: 50
+      max_items_per_page: 100
+
+    rate_limits:
+      requests_per_second: 10
+      requests_per_minute: 100
+
+    retry_policy:
+      max_retries: 3
+      backoff_factor: 2
+      retry_on_status: [429, 500, 502, 503, 504]
+
+    timeout: 30
+
+# Global MCP Settings
+global_settings:
+  connection_pool_size: 10
+  connection_timeout: 10
+  read_timeout: 30
+  max_connections_per_host: 5
+
+  caching:
+    enabled: true
+    backend: "redis"
+    ttl: 86400  # 24 hours
+    cache_search_results: true
+    cache_paper_details: true
+
+  error_handling:
+    raise_on_error: false
+    log_errors: true
+    fallback_enabled: true  # Try alternative sources
+
+  proxy:
+    enabled: false
+    http_proxy: ""
+    https_proxy: ""
+
+  user_agent: "ResearchProposalGenerator/1.0 (Academic Research Tool; mailto:your-email@example.com)"
+
+# Search Strategy Configuration
+search_strategy:
+  default_strategy: "comprehensive"
+
+  strategies:
+    comprehensive:
+      description: "Search all enabled sources in parallel"
+      sources: ["semantic_scholar", "arxiv", "frontiers"]
+      merge_results: true
+      deduplication: true
+      max_total_results: 200
+
+    focused:
+      description: "Primary source with fallback"
+      primary: "semantic_scholar"
+      fallback: ["arxiv", "frontiers"]
+      fallback_threshold: 20  # Use fallback if primary returns < 20 results
+
+    fast:
+      description: "Single fastest source"
+      sources: ["semantic_scholar"]
+      max_total_results: 50
+
+  deduplication:
+    method: "fuzzy_title_matching"
+    similarity_threshold: 0.85
+    use_doi: true
+    use_arxiv_id: true
+
+# Query Optimization
+query_optimization:
+  enabled: true
+
+  preprocessing:
+    - remove_stopwords: false  # Academic terms are important
+    - expand_acronyms: true
+    - add_synonyms: false
+    - normalize_terms: true
+
+  field_weighting:
+    title: 2.0
+    abstract: 1.5
+    keywords: 1.8
+    full_text: 1.0
+
+  boolean_operators:
+    default: "AND"
+    use_phrase_matching: true
+    allow_proximity_search: true
+
+# Result Processing
+result_processing:
+  relevance_scoring:
+    enabled: true
+    factors:
+      - name: "recency"
+        weight: 0.3
+      - name: "citation_count"
+        weight: 0.2
+      - name: "venue_quality"
+        weight: 0.2
+      - name: "keyword_match"
+        weight: 0.3
+
+  filtering:
+    min_year: 2019
+    max_year: 2025
+    min_citation_count: 0
+    require_abstract: true
+    require_full_text: false
+    languages: ["en"]
+
+  sorting:
+    default: "relevance"
+    options: ["relevance", "date", "citations", "title"]
+
+# Monitoring and Logging
+monitoring:
+  enabled: true
+  log_all_requests: true
+  log_response_times: true
+  track_api_usage: true
+  alert_on_rate_limit: true
+  alert_on_failure_threshold: 5  # consecutive failures
+
+# Health Checks
+health_checks:
+  enabled: true
+  interval: 300  # seconds
+  endpoints:
+    semantic_scholar: "/health"
+    arxiv: "/"
+  timeout: 10

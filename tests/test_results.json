@@ -1,0 +1,293 @@
+{
+  "total": 35,
+  "passed": 34,
+  "failed": 0,
+  "skipped": 1,
+  "tests": [
+    {
+      "name": "1.1 PDF Service Initialization",
+      "status": "PASS",
+      "message": "Service initialized successfully",
+      "details": {
+        "upload_folder": "data\\uploaded_papers"
+      },
+      "timestamp": "2025-12-19T20:09:07.241915"
+    },
+    {
+      "name": "1.2 Upload Folder Exists",
+      "status": "PASS",
+      "message": "Folder: data\\uploaded_papers",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.241915"
+    },
+    {
+      "name": "1.3 List Uploaded Papers",
+      "status": "PASS",
+      "message": "Found 0 papers",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.241915"
+    },
+    {
+      "name": "1.4 ParsedPaper Model & Citation",
+      "status": "PASS",
+      "message": "Harvard citation with et al. works",
+      "details": {
+        "citation": "Author One et al. (2024) 'Test Paper Title'"
+      },
+      "timestamp": "2025-12-19T20:09:07.241915"
+    },
+    {
+      "name": "1.5 Literature Source Conversion",
+      "status": "PASS",
+      "message": "Converts to literature source format",
+      "details": {
+        "source_type": "uploaded_pdf"
+      },
+      "timestamp": "2025-12-19T20:09:07.241915"
+    },
+    {
+      "name": "2.1 Formatting Controller Init",
+      "status": "PASS",
+      "message": "Controller initialized",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.241915"
+    },
+    {
+      "name": "2.2 Markdown Removal",
+      "status": "PASS",
+      "message": "Markdown artifacts removed",
+      "details": {
+        "original_len": 143,
+        "cleaned_len": 107
+      },
+      "timestamp": "2025-12-19T20:09:07.241915"
+    },
+    {
+      "name": "2.3 Academic Style Enforcement",
+      "status": "PASS",
+      "message": "Contractions expanded",
+      "details": {
+        "original": "We can't do this. It's really ",
+        "formal": "We cannot do this. it is significantly of work."
+      },
+      "timestamp": "2025-12-19T20:09:07.241915"
+    },
+    {
+      "name": "2.4 Citation Formatting",
+      "status": "PASS",
+      "message": "Citation formatting applied",
+      "details": {
+        "input": "(Smith, Jones, Williams, Brown, 2023)",
+        "output": "(Smith et al., 2023)"
+      },
+      "timestamp": "2025-12-19T20:09:07.241915"
+    },
+    {
+      "name": "2.5 Whitespace Cleaning",
+      "status": "PASS",
+      "message": "Whitespace normalized",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.241915"
+    },
+    {
+      "name": "2.6 Full Proposal Formatting",
+      "status": "PASS",
+      "message": "Proposal formatted successfully",
+      "details": {
+        "sections": 2
+      },
+      "timestamp": "2025-12-19T20:09:07.253006"
+    },
+    {
+      "name": "3.1 Template Creation",
+      "status": "PASS",
+      "message": "Academic template created",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.253006"
+    },
+    {
+      "name": "3.2 Title Page Generation",
+      "status": "PASS",
+      "message": "Title page has all required elements",
+      "details": {
+        "title": "MACHINE LEARNING FOR HEALTHCAR"
+      },
+      "timestamp": "2025-12-19T20:09:07.253006"
+    },
+    {
+      "name": "3.3 Dedication Page",
+      "status": "PASS",
+      "message": "Dedication: This research proposal is dedicated to the advance...",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.253006"
+    },
+    {
+      "name": "3.4 Acknowledgements Page",
+      "status": "PASS",
+      "message": "Includes supervisor acknowledgement",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.254018"
+    },
+    {
+      "name": "3.5 Table of Contents",
+      "status": "PASS",
+      "message": "Generated 35 entries",
+      "details": {
+        "entries": 35
+      },
+      "timestamp": "2025-12-19T20:09:07.254018"
+    },
+    {
+      "name": "3.6 Chapter Templates",
+      "status": "PASS",
+      "message": "Ch1: 6 sections, Ch3: 16 sections",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.254018"
+    },
+    {
+      "name": "3.7 Full Structure Generation",
+      "status": "PASS",
+      "message": "Complete Q1 journal structure generated",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.254018"
+    },
+    {
+      "name": "4.1 Visual Agent Structure",
+      "status": "PASS",
+      "message": "Agent structure valid",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.379588"
+    },
+    {
+      "name": "4.2 Diagram Types",
+      "status": "PASS",
+      "message": "All 6 diagram types available",
+      "details": {
+        "types": [
+          "workflow",
+          "flowchart",
+          "conceptual",
+          "dataflow",
+          "architecture",
+          "gantt"
+        ]
+      },
+      "timestamp": "2025-12-19T20:09:07.379588"
+    },
+    {
+      "name": "4.3 Mermaid Code Extraction",
+      "status": "PASS",
+      "message": "Extracted mermaid code from response",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.379588"
+    },
+    {
+      "name": "4.4 Gantt Chart Generation",
+      "status": "PASS",
+      "message": "Gantt chart template generated",
+      "details": {
+        "figure": "Figure A1"
+      },
+      "timestamp": "2025-12-19T20:09:07.379588"
+    },
+    {
+      "name": "4.5 Input Validation",
+      "status": "PASS",
+      "message": "Validates topic requirement",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.379588"
+    },
+    {
+      "name": "7.1 ReportLab (PDF)",
+      "status": "PASS",
+      "message": "Version: 4.4.6",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.379588"
+    },
+    {
+      "name": "7.2 Python-docx (DOCX)",
+      "status": "PASS",
+      "message": "Available",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.457046"
+    },
+    {
+      "name": "7.3 PyMuPDF (PDF Parsing)",
+      "status": "PASS",
+      "message": "Version: 1.26.7",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.457046"
+    },
+    {
+      "name": "7.4 PDFMiner (PDF Parsing)",
+      "status": "PASS",
+      "message": "Available",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.457670"
+    },
+    {
+      "name": "5.1 Health Endpoint",
+      "status": "PASS",
+      "message": "Status: healthy",
+      "details": {
+        "agents": 11
+      },
+      "timestamp": "2025-12-19T20:09:07.774801"
+    },
+    {
+      "name": "5.2 System Status",
+      "status": "PASS",
+      "message": "LLM: anthropic",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.774801"
+    },
+    {
+      "name": "5.3 Diagram Types Endpoint",
+      "status": "PASS",
+      "message": "Found 6 types",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.774801"
+    },
+    {
+      "name": "5.4 List Papers Endpoint",
+      "status": "PASS",
+      "message": "Found 0 papers",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.906269"
+    },
+    {
+      "name": "5.5 List Jobs Endpoint",
+      "status": "PASS",
+      "message": "Found 0 jobs",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:07.906269"
+    },
+    {
+      "name": "5.6 LLM Connection Test",
+      "status": "PASS",
+      "message": "Provider: anthropic",
+      "details": {
+        "model": "claude-sonnet-4-20250514"
+      },
+      "timestamp": "2025-12-19T20:09:10.319829"
+    },
+    {
+      "name": "6.1 Start Proposal Generation",
+      "status": "PASS",
+      "message": "Job created: 39281032...",
+      "details": {
+        "estimated_time": "15 minutes"
+      },
+      "timestamp": "2025-12-19T20:09:14.051671"
+    },
+    {
+      "name": "6.2 Proposal Generation Progress",
+      "status": "SKIP",
+      "message": "Timeout after 30s (job still running)",
+      "details": null,
+      "timestamp": "2025-12-19T20:09:44.157143"
+    }
+  ],
+  "start_time": "2025-12-19T20:09:05.973601",
+  "end_time": "2025-12-19T20:09:44.157143"
+}

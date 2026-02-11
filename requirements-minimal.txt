@@ -1,0 +1,39 @@
+# Minimal requirements for core functionality
+# Install with: pip install -r requirements-minimal.txt
+
+# Core essentials
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+pyyaml>=6.0.0
+python-dotenv>=1.0.0
+httpx>=0.24.0
+
+# LLM providers
+anthropic>=0.20.0
+openai>=1.0.0
+
+# API framework
+fastapi>=0.100.0
+uvicorn>=0.20.0
+
+# State management (for in-memory mode)
+redis>=4.5.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+
+# Async HTTP
+aiohttp>=3.8.0
+
+# Utilities
+requests>=2.30.0
+loguru>=0.7.0
+
+# Authentication (CISSP-compliant)
+bcrypt>=4.0.0
+python-jose[cryptography]>=3.3.0
+google-auth>=2.22.0
+email-validator>=2.0.0

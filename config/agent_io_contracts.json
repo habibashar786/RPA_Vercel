@@ -1,0 +1,500 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ResearchAI Agent I/O Contracts",
+  "version": "2.1.0",
+  "description": "Standardized input/output contracts for all ResearchAI agents",
+  
+  "agents": {
+    "FrontMatterAgent": {
+      "description": "Generates title page, table of contents, dedications, acknowledgements",
+      "input": {
+        "type": "object",
+        "required": ["topic", "author_name", "submission_date"],
+        "properties": {
+          "topic": { "type": "string", "minLength": 10 },
+          "author_name": { "type": "string" },
+          "submission_date": { "type": "string", "format": "date" },
+          "dedication_to": { "type": "string" },
+          "institution": { "type": "string" },
+          "supervisor": { "type": "string" }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["title_page", "table_of_contents"],
+        "properties": {
+          "title_page": { "type": "string" },
+          "dedication": { "type": "string" },
+          "acknowledgements": { "type": "string" },
+          "abstract": { "type": "string" },
+          "table_of_contents": { "type": "string" },
+          "list_of_abbreviations": { "type": "string" }
+        }
+      }
+    },
+    
+    "IntroductionAgent": {
+      "description": "Generates Chapter 1: Introduction with background, problem statement, objectives",
+      "input": {
+        "type": "object",
+        "required": ["topic", "key_points"],
+        "properties": {
+          "topic": { "type": "string" },
+          "key_points": { "type": "array", "items": { "type": "string" } },
+          "target_word_count": { "type": "integer", "default": 2000 }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["background", "problem_statement", "aim_objectives"],
+        "properties": {
+          "background": { "type": "string", "minLength": 500 },
+          "problem_statement": { "type": "string", "minLength": 300 },
+          "aim_objectives": { "type": "string", "minLength": 200 },
+          "scope": { "type": "string" },
+          "significance": { "type": "string" },
+          "structure": { "type": "string" },
+          "word_count": { "type": "integer" },
+          "citations_used": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    
+    "LiteratureReviewAgent": {
+      "description": "Generates Chapter 2: Literature Review with gap analysis",
+      "input": {
+        "type": "object",
+        "required": ["topic", "introduction_summary"],
+        "properties": {
+          "topic": { "type": "string" },
+          "introduction_summary": { "type": "string" },
+          "key_themes": { "type": "array", "items": { "type": "string" } },
+          "target_word_count": { "type": "integer", "default": 3000 }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["literature_review", "gaps", "discussion"],
+        "properties": {
+          "introduction": { "type": "string" },
+          "literature_review": { "type": "string", "minLength": 2000 },
+          "gaps": { "type": "string", "minLength": 400 },
+          "discussion": { "type": "string" },
+          "word_count": { "type": "integer" },
+          "citations_used": { "type": "array", "items": { "type": "string" } },
+          "identified_gaps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "gap_id": { "type": "string" },
+                "description": { "type": "string" },
+                "importance": { "type": "string", "enum": ["high", "medium", "low"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "ResearchMethodologyAgent": {
+      "description": "Generates Chapter 3: Research Methodology",
+      "input": {
+        "type": "object",
+        "required": ["topic", "gaps", "objectives"],
+        "properties": {
+          "topic": { "type": "string" },
+          "gaps": { "type": "string" },
+          "objectives": { "type": "string" },
+          "target_word_count": { "type": "integer", "default": 4000 }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["methodology"],
+        "properties": {
+          "introduction": { "type": "string" },
+          "methodology": { "type": "string" },
+          "dataset_description": { "type": "string" },
+          "missing_values_handling": { "type": "string" },
+          "eda": { "type": "string" },
+          "experimental_design": { "type": "string" },
+          "model_development": { "type": "string" },
+          "data_splitting": { "type": "string" },
+          "feature_selection": { "type": "string" },
+          "model_evaluation": { "type": "string" },
+          "comparative_analysis": { "type": "string" },
+          "ethical_considerations": { "type": "string" },
+          "collaboration_feedback": { "type": "string" },
+          "deliverables": { "type": "string" },
+          "required_resources": { "type": "string" },
+          "risk_contingency": { "type": "string" },
+          "word_count": { "type": "integer" }
+        }
+      }
+    },
+    
+    "MethodologyOptimizerAgent": {
+      "description": "Advisory agent that suggests methodology improvements",
+      "input": {
+        "type": "object",
+        "required": ["methodology"],
+        "properties": {
+          "methodology": { "type": "string" },
+          "topic": { "type": "string" },
+          "gaps": { "type": "string" }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["optimized_methodology", "suggestions"],
+        "properties": {
+          "optimized_methodology": { "type": "string" },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "area": { "type": "string" },
+                "suggestion": { "type": "string" },
+                "priority": { "type": "string", "enum": ["high", "medium", "low"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "RiskAssessmentAgent": {
+      "description": "Identifies research risks and mitigation strategies",
+      "input": {
+        "type": "object",
+        "required": ["methodology", "topic"],
+        "properties": {
+          "methodology": { "type": "string" },
+          "topic": { "type": "string" },
+          "resources": { "type": "string" }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["risks", "mitigation_strategies"],
+        "properties": {
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "risk_id": { "type": "string" },
+                "description": { "type": "string" },
+                "likelihood": { "type": "string", "enum": ["high", "medium", "low"] },
+                "impact": { "type": "string", "enum": ["high", "medium", "low"] }
+              }
+            }
+          },
+          "mitigation_strategies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "risk_id": { "type": "string" },
+                "strategy": { "type": "string" }
+              }
+            }
+          },
+          "contingency_plan": { "type": "string" }
+        }
+      }
+    },
+    
+    "QualityAssuranceAgent": {
+      "description": "Validates content quality - FLAGS ONLY, DOES NOT REWRITE",
+      "input": {
+        "type": "object",
+        "required": ["content"],
+        "properties": {
+          "content": { "type": "string" },
+          "section_type": { "type": "string" }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["is_valid", "issues"],
+        "properties": {
+          "is_valid": { "type": "boolean" },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "issue_type": { "type": "string" },
+                "description": { "type": "string" },
+                "location": { "type": "string" },
+                "severity": { "type": "string", "enum": ["critical", "major", "minor"] }
+              }
+            }
+          },
+          "quality_score": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    
+    "ProofReadingAgent": {
+      "description": "Validates consistency and grammar - VALIDATION ONLY",
+      "input": {
+        "type": "object",
+        "required": ["sections"],
+        "properties": {
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "content": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["is_consistent", "corrections"],
+        "properties": {
+          "is_consistent": { "type": "boolean" },
+          "corrections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "original": { "type": "string" },
+                "correction": { "type": "string" },
+                "reason": { "type": "string" }
+              }
+            }
+          },
+          "duplicate_headings": { "type": "array", "items": { "type": "string" } },
+          "pagination_issues": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    
+    "ReferenceCitationAgent": {
+      "description": "Formats citations and generates reference list",
+      "input": {
+        "type": "object",
+        "required": ["content", "citation_style"],
+        "properties": {
+          "content": { "type": "string" },
+          "citation_style": { "type": "string", "enum": ["harvard", "apa", "mla", "chicago"] }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["references"],
+        "properties": {
+          "references": { "type": "string" },
+          "reference_count": { "type": "integer" },
+          "citation_format": { "type": "string" }
+        }
+      }
+    },
+    
+    "VisualizationAgent": {
+      "description": "Generates diagrams and visual elements",
+      "input": {
+        "type": "object",
+        "required": ["content", "topic"],
+        "properties": {
+          "content": { "type": "string" },
+          "topic": { "type": "string" },
+          "diagram_types": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["diagrams"],
+        "properties": {
+          "diagrams": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string" },
+                "title": { "type": "string" },
+                "mermaid_code": { "type": "string" },
+                "placement": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "StructureFormattingAgent": {
+      "description": "SOLE AUTHORITY for document formatting",
+      "input": {
+        "type": "object",
+        "required": ["sections"],
+        "properties": {
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "content": { "type": "string" }
+              }
+            }
+          },
+          "formatting_rules": {
+            "type": "object",
+            "properties": {
+              "font_family": { "type": "string", "default": "Times New Roman" },
+              "font_size": { "type": "integer", "default": 12 },
+              "line_spacing": { "type": "number", "default": 1.5 },
+              "margins": { "type": "object" }
+            }
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["formatted_sections"],
+        "properties": {
+          "formatted_sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "content": { "type": "string" },
+                "page_number": { "type": "integer" }
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "FinalAssemblyAgent": {
+      "description": "Assembles all validated outputs into final document",
+      "input": {
+        "type": "object",
+        "required": ["agent_outputs"],
+        "properties": {
+          "agent_outputs": {
+            "type": "object",
+            "description": "Outputs from all preceding agents"
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["proposal"],
+        "properties": {
+          "proposal": {
+            "type": "object",
+            "properties": {
+              "topic": { "type": "string" },
+              "sections": { "type": "array" },
+              "word_count": { "type": "integer" },
+              "diagrams": { "type": "array" },
+              "references": { "type": "string" },
+              "generated_at": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      }
+    },
+    
+    "UIUXAgent": {
+      "description": "MANDATORY - Handles preview, export, subscription logic",
+      "input": {
+        "type": "object",
+        "required": ["proposal", "subscription_tier"],
+        "properties": {
+          "proposal": { "type": "object" },
+          "subscription_tier": { "type": "string", "enum": ["free", "non_permanent", "permanent"] },
+          "export_format": { "type": "string", "enum": ["pdf", "docx", "markdown", "latex"] }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["delivery"],
+        "properties": {
+          "delivery": {
+            "type": "object",
+            "properties": {
+              "preview_html": { "type": "string" },
+              "is_limited": { "type": "boolean" },
+              "watermark_applied": { "type": "boolean" },
+              "export_enabled": { "type": "boolean" },
+              "download_url": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  
+  "future_agents": {
+    "ScopusComplianceAgent": {
+      "description": "READ-ONLY evaluation against Scopus Q1 criteria",
+      "status": "planned",
+      "input": {
+        "type": "object",
+        "required": ["proposal"],
+        "properties": {
+          "proposal": { "type": "object" }
+        }
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "overall_score": { "type": "number", "minimum": 0, "maximum": 1 },
+          "acceptance_probability": {
+            "type": "object",
+            "properties": {
+              "estimate": { "type": "number" },
+              "confidence_lower": { "type": "number" },
+              "confidence_upper": { "type": "number" }
+            }
+          },
+          "criteria_scores": { "type": "object" },
+          "recommendations": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    
+    "ReviewerSimulationAgent": {
+      "description": "Simulates peer review process",
+      "status": "planned",
+      "input": {
+        "type": "object",
+        "required": ["proposal"],
+        "properties": {
+          "proposal": { "type": "object" },
+          "reviewer_personas": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": ["strict_methodologist", "literature_expert", "practical_editor"]
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "overall_assessment": {
+            "type": "string",
+            "enum": ["accept", "minor_revision", "major_revision", "reject"]
+          },
+          "reviewer_comments": { "type": "array" },
+          "suggested_revisions": { "type": "array" },
+          "strengths": { "type": "array" },
+          "weaknesses": { "type": "array" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,279 @@
+# Agent Configuration for Research Proposal Generation System
+
+orchestrator:
+  name: "Central Orchestrator"
+  model: "claude-3-5-sonnet-20240620"
+  temperature: 0.3
+  max_tokens: 4096
+  role: |
+    You are the Central Orchestrator Agent responsible for coordinating all agents
+    in the research proposal generation system. You decompose tasks, assign them to
+    specialized agents, manage inter-agent communication, and ensure workflow coherence.
+  capabilities:
+    - task_decomposition
+    - agent_assignment
+    - workflow_management
+    - error_handling
+    - progress_tracking
+  max_parallel_tasks: 5
+  retry_attempts: 3
+
+agents:
+  literature_review:
+    name: "Literature Review Agent"
+    model: "claude-3-5-sonnet-20240620"
+    temperature: 0.5
+    max_tokens: 8192
+    role: |
+      You are a Literature Review Agent specialized in systematic literature synthesis.
+      You search academic databases, analyze papers, identify research gaps, and ensure
+      originality through sophisticated paraphrasing. You must review minimum 30 papers
+      prioritizing the last 6 years with highly relevant papers from last 15 years.
+    capabilities:
+      - database_search
+      - paper_analysis
+      - gap_identification
+      - paraphrasing
+      - citation_extraction
+    requirements:
+      min_papers: 30
+      recent_years: 6
+      extended_years: 15
+      citation_style: "harvard"
+    mcp_servers:
+      - semantic_scholar
+      - arxiv
+      - frontiers
+
+  research_methodology:
+    name: "Research Methodology Agent"
+    model: "claude-3-5-sonnet-20240620"
+    temperature: 0.4
+    max_tokens: 8192
+    role: |
+      You are a Research Methodology Agent specialized in designing robust experimental
+      frameworks. You analyze research questions, design methodologies, create process
+      flow diagrams, detail experimental setups, and incorporate ethical considerations.
+    capabilities:
+      - methodology_design
+      - process_flow_generation
+      - experimental_setup
+      - ethical_consideration
+      - resource_planning
+    tools:
+      - mermaid_js
+      - statistical_analysis
+      - model_architecture
+
+  visualization:
+    name: "Visualization and Diagram Agent"
+    model: "claude-3-5-sonnet-20240620"
+    temperature: 0.3
+    max_tokens: 4096
+    role: |
+      You are a Visualization Agent specialized in creating professional diagrams and
+      charts. You generate process flows, model architectures, and data visualizations
+      using Mermaid.js, Plotly, and Seaborn.
+    capabilities:
+      - process_flow_diagrams
+      - model_architecture_illustrations
+      - data_visualization
+      - chart_generation
+    tools:
+      mermaid: true
+      plotly: true
+      seaborn: true
+      biorender: false  # Requires external API
+      mindthegraph: false  # Requires external API
+
+  introduction:
+    name: "Introduction Agent"
+    model: "claude-3-5-sonnet-20240620"
+    temperature: 0.5
+    max_tokens: 6144
+    role: |
+      You are an Introduction Agent responsible for crafting compelling introductions.
+      You formulate problem statements, define research objectives, establish context,
+      and articulate the significance of the research based on literature review gaps.
+    capabilities:
+      - problem_statement_formulation
+      - objective_definition
+      - context_establishment
+      - significance_articulation
+    dependencies:
+      - literature_review
+
+  quality_assurance:
+    name: "Quality Assurance Agent"
+    model: "claude-3-5-sonnet-20240620"
+    temperature: 0.2
+    max_tokens: 8192
+    role: |
+      You are a Quality Assurance Agent acting as a peer reviewer for Q1 journals.
+      You evaluate structure, clarity, academic integrity, originality, and compliance
+      with editorial standards. You provide detailed feedback and recommendations.
+    capabilities:
+      - peer_review
+      - plagiarism_detection
+      - structure_evaluation
+      - compliance_checking
+      - feedback_generation
+    standards:
+      - turnitin_compliance
+      - q1_journal_standards
+      - academic_integrity
+
+  structure_formatting:
+    name: "Structure and Formatting Agent"
+    model: "claude-3-haiku-20240307"  # Simpler task, use faster model
+    temperature: 0.1
+    max_tokens: 4096
+    role: |
+      You are a Structure and Formatting Agent responsible for document layout and
+      styling. You apply editorial standards, manage section numbering, generate
+      table of contents, and ensure consistent formatting throughout.
+    capabilities:
+      - formatting_application
+      - section_numbering
+      - toc_generation
+      - style_enforcement
+    formatting_standards:
+      font: "Times New Roman"
+      font_size: 12
+      line_spacing: 1.5
+      margin_top: 1.0
+      margin_bottom: 1.0
+      margin_left: 1.0
+      margin_right: 1.0
+      citation_style: "harvard"
+
+  front_matter:
+    name: "Front Matter Agent"
+    model: "claude-3-haiku-20240307"
+    temperature: 0.4
+    max_tokens: 2048
+    role: |
+      You are a Front Matter Agent responsible for generating preliminary pages including
+      dedication, acknowledgements, abstract, keywords, and list of abbreviations.
+    capabilities:
+      - dedication_generation
+      - acknowledgement_composition
+      - abstract_synthesis
+      - keyword_extraction
+      - abbreviation_compilation
+    requirements:
+      abstract_length: [200, 300]
+      keywords_count: [5, 8]
+
+  reference_citation:
+    name: "Reference and Citation Agent"
+    model: "claude-3-haiku-20240307"
+    temperature: 0.1
+    max_tokens: 8192
+    role: |
+      You are a Reference and Citation Agent managing all citations and bibliography.
+      You format citations in Harvard style, compile reference lists, and ensure
+      citation accuracy and sequencing.
+    capabilities:
+      - citation_management
+      - bibliography_generation
+      - citation_validation
+      - reference_sequencing
+    citation_style: "harvard"
+    sequencing_mode: "order_of_use"
+
+  final_assembly:
+    name: "Appendix and Final Report Agent"
+    model: "claude-3-haiku-20240307"
+    temperature: 0.2
+    max_tokens: 4096
+    role: |
+      You are a Final Assembly Agent responsible for compiling all components into
+      the final document, generating appendices, and exporting to PDF/Word format.
+    capabilities:
+      - document_assembly
+      - appendix_generation
+      - research_plan_creation
+      - diagram_list_compilation
+      - export_management
+    export_formats:
+      - pdf
+      - docx
+
+  risk_assessment:
+    name: "Risk Assessment Agent"
+    model: "claude-3-5-sonnet-20240620"
+    temperature: 0.4
+    max_tokens: 4096
+    role: |
+      You are a Risk Assessment Agent specialized in identifying project risks and
+      developing contingency plans. You analyze technical, temporal, and personal
+      risks and propose mitigation strategies.
+    capabilities:
+      - risk_identification
+      - risk_analysis
+      - mitigation_strategy_development
+      - contingency_planning
+    risk_categories:
+      - time_constraints
+      - resource_limitation
+      - technical_challenges
+      - data_collection_challenges
+      - health_issues
+      - writer_block
+      - distraction
+      - procrastination
+
+  methodology_optimizer:
+    name: "AI-Assisted Methodology Optimizer"
+    model: "claude-3-5-sonnet-20240620"
+    temperature: 0.3
+    max_tokens: 6144
+    role: |
+      You are an AI-Assisted Methodology Optimizer that analyzes successful proposals
+      to recommend optimal research designs. You identify common approaches, pitfalls,
+      and provide data-driven methodology recommendations.
+    capabilities:
+      - proposal_analysis
+      - pattern_recognition
+      - methodology_recommendation
+      - pitfall_identification
+      - optimization_suggestion
+    analysis_scope:
+      min_proposals_to_analyze: 50
+      focus_on_recent_years: 3
+
+workflow:
+  execution_mode: "hybrid"  # parallel + sequential
+  max_iterations: 3
+  enable_feedback_loops: true
+  checkpoint_frequency: "per_chapter"
+
+  task_dependencies:
+    - source: "literature_review"
+      targets: ["introduction", "research_methodology"]
+    - source: "introduction"
+      targets: ["research_methodology"]
+    - source: "research_methodology"
+      targets: ["visualization", "risk_assessment"]
+    - source: "visualization"
+      targets: ["final_assembly"]
+    - source: "quality_assurance"
+      targets: ["final_assembly"]
+      type: "review"
+
+  parallel_groups:
+    - ["front_matter", "structure_formatting"]
+    - ["methodology_optimizer", "risk_assessment"]
+
+logging:
+  level: "INFO"
+  format: "json"
+  log_agent_decisions: true
+  log_inter_agent_communication: true
+
+performance:
+  cache_enabled: true
+  cache_ttl: 3600
+  rate_limit_per_minute: 60
+  timeout_per_task: 300

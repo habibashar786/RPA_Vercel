@@ -1,0 +1,161 @@
+# ResearchAI v2.3.0 - Production Deployment Configuration
+# Docker Compose for local development and production
+
+version: '3.8'
+
+services:
+  # ==========================================================================
+  # Backend API Server
+  # ==========================================================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: researchai-backend
+    ports:
+      - "8001:8001"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://researchai:${DB_PASSWORD}@postgres:5432/researchai
+      - SMTP_HOST=${SMTP_HOST:-smtp.sendgrid.net}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - FROM_EMAIL=${FROM_EMAIL:-noreply@researchai.app}
+      - ENVIRONMENT=production
+    depends_on:
+      - redis
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - researchai-network
+
+  # ==========================================================================
+  # Frontend (Next.js)
+  # ==========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: researchai-frontend
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8001
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - researchai-network
+
+  # ==========================================================================
+  # Redis (Cache & Job Queue)
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: researchai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - researchai-network
+
+  # ==========================================================================
+  # PostgreSQL (Persistent Storage)
+  # ==========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: researchai-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=researchai
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-researchai123}
+      - POSTGRES_DB=researchai
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U researchai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - researchai-network
+
+  # ==========================================================================
+  # Celery Worker (Background Tasks & Email)
+  # ==========================================================================
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: researchai-worker
+    command: celery -A src.workers.celery_app worker --loglevel=info
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://researchai:${DB_PASSWORD}@postgres:5432/researchai
+      - SMTP_HOST=${SMTP_HOST:-smtp.sendgrid.net}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - FROM_EMAIL=${FROM_EMAIL:-noreply@researchai.app}
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+    networks:
+      - researchai-network
+
+  # ==========================================================================
+  # Nginx (Reverse Proxy with SSL)
+  # ==========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: researchai-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - researchai-network
+
+# ==========================================================================
+# Volumes
+# ==========================================================================
+volumes:
+  redis-data:
+  postgres-data:
+
+# ==========================================================================
+# Networks
+# ==========================================================================
+networks:
+  researchai-network:
+    driver: bridge
