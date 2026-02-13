@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 
-const API_URL = 'http://localhost:8001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export default function Signup() {
   const router = useRouter();
