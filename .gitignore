@@ -19,7 +19,7 @@ venv/
 ENV/
 env/
 
-# Environment files
+# Environment files (keep .env.production)
 .env
 .env.local
 .env.development.local
@@ -59,8 +59,6 @@ test_e2e_output.txt
 *.sqlite3
 
 # Large files
-*.pdf
-*.docx
 data/
 
 # Misc
