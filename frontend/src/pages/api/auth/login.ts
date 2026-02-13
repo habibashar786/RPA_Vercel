@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { usersStore, generateToken } from '@/lib/store';
+import { usersStore, generateToken } from '../../../lib/apiStore';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -13,7 +13,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(401).json({ detail: 'Invalid credentials' });
   }
 
-  if (user.authProvider === 'google') {
+  if (user.auth_provider === 'google') {
     return res.status(400).json({ detail: 'Please use Google Sign-In' });
   }
 
@@ -27,7 +27,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       email: user.email,
       name: user.name,
       picture: user.picture,
-      subscription_tier: user.subscriptionTier
+      subscription_tier: user.subscription_tier
     }
   });
 }

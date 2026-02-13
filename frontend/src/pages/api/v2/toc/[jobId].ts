@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const { jobId } = req.query;
-  
+
   res.status(200).json({
     version: '2.5.0',
     title: 'Table of Contents',

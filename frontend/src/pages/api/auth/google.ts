@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { usersStore, generateToken, generateId, decodeGoogleJwt } from '@/lib/store';
+import { usersStore, generateToken, generateUuid, decodeGoogleJwt } from '../../../lib/apiStore';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -29,14 +29,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     user.picture = picture;
   } else {
     // Create new user
-    const userId = `google_${generateId()}`;
+    const userId = `google_${generateUuid()}`;
     user = {
       id: userId,
       email,
       name,
       picture,
-      subscriptionTier: 'free',
-      authProvider: 'google'
+      subscription_tier: 'free',
+      auth_provider: 'google'
     };
     usersStore[email] = user;
   }
@@ -51,7 +51,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       email: user.email,
       name: user.name,
       picture: user.picture,
-      subscription_tier: user.subscriptionTier
+      subscription_tier: user.subscription_tier
     }
   });
 }

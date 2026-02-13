@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { generateId } from '@/lib/store';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   res.status(200).json({
@@ -12,7 +12,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       { source: 'Books', percentage: 2.5 }
     ],
     certificate: {
-      id: `cert_${generateId().slice(0, 8)}`,
+      id: `cert_${uuidv4().slice(0, 8)}`,
       issued_at: new Date().toISOString(),
       status: 'valid'
     }

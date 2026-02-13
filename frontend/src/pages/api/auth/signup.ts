@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { usersStore, generateToken, generateId } from '@/lib/store';
+import { usersStore, generateToken, generateUuid } from '../../../lib/apiStore';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -12,15 +12,15 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ detail: 'Email already registered' });
   }
 
-  const userId = `user_${generateId()}`;
+  const userId = `user_${generateUuid()}`;
   usersStore[email] = {
     id: userId,
     email,
     name,
     password,
     picture: null,
-    subscriptionTier: 'free',
-    authProvider: 'email'
+    subscription_tier: 'free',
+    auth_provider: 'email'
   };
 
   const token = generateToken(userId);

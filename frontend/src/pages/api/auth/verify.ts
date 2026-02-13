@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getUserFromToken } from '@/lib/store';
+import { getUserFromToken } from '../../../lib/apiStore';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const authHeader = req.headers.authorization;

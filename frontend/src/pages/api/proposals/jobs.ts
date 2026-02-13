@@ -1,10 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { jobsStore } from '../../../lib/apiStore';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { tier } = req.body || req.query;
   res.status(200).json({
-    success: true,
-    new_tier: tier || 'premium',
-    message: `Successfully upgraded to ${tier || 'premium'} tier`
+    jobs: Object.values(jobsStore),
+    total: Object.keys(jobsStore).length
   });
 }

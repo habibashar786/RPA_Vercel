@@ -1,11 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { proposalsStore } from '@/lib/store';
+import { proposalsStore } from '../../../../lib/apiStore';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const { requestId } = req.query;
-  const id = Array.isArray(requestId) ? requestId[0] : requestId;
+  const requestIdStr = Array.isArray(requestId) ? requestId[0] : requestId;
 
-  const proposal = proposalsStore[id as string];
+  if (!requestIdStr) {
+    return res.status(400).json({ detail: 'Request ID required' });
+  }
+
+  const proposal = proposalsStore[requestIdStr];
   if (!proposal) {
     return res.status(404).json({ detail: 'Proposal not found' });
   }
@@ -21,7 +25,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     <body>
       <h1>${proposal.topic}</h1>
       <p><strong>Word Count:</strong> ${proposal.word_count}</p>
-      <hr>
       ${proposal.sections.map((s: any) => `<h2>${s.title}</h2><p>${s.content}</p>`).join('')}
     </body>
     </html>

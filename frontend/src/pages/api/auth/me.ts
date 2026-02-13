@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getUserFromToken } from '@/lib/store';
+import { getUserFromToken } from '../../../lib/apiStore';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const authHeader = req.headers.authorization;
@@ -14,6 +14,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     email: user.email,
     name: user.name,
     picture: user.picture,
-    subscription_tier: user.subscriptionTier
+    subscription_tier: user.subscription_tier
   });
 }

@@ -1,20 +1,26 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { jobsStore, proposalsStore } from '@/lib/store';
+import { jobsStore, proposalsStore } from '../../../../lib/apiStore';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const { jobId } = req.query;
-  const id = Array.isArray(jobId) ? jobId[0] : jobId;
+  const jobIdStr = Array.isArray(jobId) ? jobId[0] : jobId;
 
-  // Check if requesting result
-  if (req.url?.includes('/result')) {
-    const proposal = proposalsStore[id as string];
+  if (!jobIdStr) {
+    return res.status(400).json({ detail: 'Job ID required' });
+  }
+
+  // Check if this is a result request
+  const url = req.url || '';
+  if (url.includes('/result')) {
+    const proposal = proposalsStore[jobIdStr];
     if (!proposal) {
       return res.status(404).json({ detail: 'Proposal not found' });
     }
     return res.status(200).json(proposal);
   }
 
-  const job = jobsStore[id as string];
+  // Return job status
+  const job = jobsStore[jobIdStr];
   if (!job) {
     return res.status(404).json({ detail: 'Job not found' });
   }
