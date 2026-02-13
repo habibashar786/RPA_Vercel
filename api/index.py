@@ -2,15 +2,18 @@
 Vercel Serverless Entry Point for ResearchAI API
 ================================================
 This file wraps the FastAPI application for Vercel serverless deployment.
+With full Google OAuth support for individual user authentication.
 """
 
 import sys
 import os
+import json
+import base64
 
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -19,6 +22,7 @@ from datetime import datetime
 from enum import Enum
 import uuid
 import logging
+import hashlib
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,7 +34,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="ResearchAI API",
     description="AI-Powered Multi-Agent Research Proposal Generator",
-    version="2.4.0",
+    version="2.5.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json"
@@ -79,19 +83,85 @@ class GoogleAuthRequest(BaseModel):
 
 
 # ============================================================================
-# In-Memory Storage (for serverless - resets on cold start)
+# In-Memory Storage (persistent across requests in same instance)
+# For production, use a database like Vercel KV, Supabase, or MongoDB
 # ============================================================================
 jobs_store: Dict[str, Any] = {}
+proposals_store: Dict[str, Any] = {}
+
+# Users store - persists Google OAuth users
 users_store: Dict[str, Any] = {
     "demo@researchai.com": {
         "id": "demo-user-001",
         "email": "demo@researchai.com",
         "name": "Demo User",
-        "password": "demo123",  # In production, use hashed passwords
-        "subscription_tier": "permanent"
+        "password": "demo123",
+        "picture": None,
+        "subscription_tier": "permanent",
+        "auth_provider": "email",
+        "created_at": "2024-01-01T00:00:00Z"
     }
 }
-proposals_store: Dict[str, Any] = {}
+
+# Token store - maps tokens to user IDs
+tokens_store: Dict[str, str] = {}
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+def decode_google_jwt(token: str) -> Dict[str, Any]:
+    """
+    Decode Google JWT token to extract user info.
+    Note: In production, you should verify the token signature with Google's public keys.
+    """
+    try:
+        # JWT has 3 parts: header.payload.signature
+        parts = token.split('.')
+        if len(parts) != 3:
+            raise ValueError("Invalid JWT format")
+        
+        # Decode the payload (second part)
+        payload = parts[1]
+        # Add padding if needed
+        padding = 4 - len(payload) % 4
+        if padding != 4:
+            payload += '=' * padding
+        
+        decoded = base64.urlsafe_b64decode(payload)
+        return json.loads(decoded)
+    except Exception as e:
+        logger.error(f"JWT decode error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid Google credential")
+
+
+def generate_token(user_id: str) -> str:
+    """Generate a unique authentication token"""
+    timestamp = datetime.utcnow().timestamp()
+    raw = f"{user_id}_{timestamp}_{uuid.uuid4().hex}"
+    token = hashlib.sha256(raw.encode()).hexdigest()[:48]
+    tokens_store[token] = user_id
+    return token
+
+
+def get_user_from_token(token: str) -> Optional[Dict[str, Any]]:
+    """Get user from authentication token"""
+    if not token:
+        return None
+    
+    # Remove "Bearer " prefix if present
+    if token.startswith("Bearer "):
+        token = token[7:]
+    
+    user_id = tokens_store.get(token)
+    if not user_id:
+        return None
+    
+    # Find user by ID
+    for user in users_store.values():
+        if user["id"] == user_id:
+            return user
+    return None
 
 
 # ============================================================================
@@ -102,9 +172,11 @@ proposals_store: Dict[str, Any] = {}
 async def health_check():
     return {
         "status": "healthy",
-        "version": "2.4.0",
+        "version": "2.5.0",
         "timestamp": datetime.utcnow().isoformat(),
-        "service": "ResearchAI API (Vercel Serverless)"
+        "service": "ResearchAI API (Vercel Serverless)",
+        "users_count": len(users_store),
+        "google_oauth": "enabled"
     }
 
 
@@ -113,14 +185,15 @@ async def system_status():
     return {
         "status": "operational",
         "agents_count": 12,
-        "version": "2.4.0",
+        "version": "2.5.0",
         "environment": "vercel-serverless",
         "features": {
             "proposal_generation": True,
             "scopus_compliance": True,
             "peer_review_simulation": True,
             "pdf_export": True,
-            "docx_export": True
+            "docx_export": True,
+            "google_oauth": True
         }
     }
 
@@ -152,17 +225,27 @@ async def list_agents():
 # ============================================================================
 @app.post("/api/auth/login")
 async def login(request: LoginRequest):
+    """Email/Password login"""
     user = users_store.get(request.email)
-    if not user or user["password"] != request.password:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    if user.get("auth_provider") == "google":
+        raise HTTPException(status_code=400, detail="This account uses Google Sign-In. Please use Google to log in.")
+    
+    if user.get("password") != request.password:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    token = generate_token(user["id"])
     
     return {
-        "access_token": f"token_{user['id']}_{datetime.utcnow().timestamp()}",
+        "access_token": token,
         "token_type": "bearer",
         "user": {
             "id": user["id"],
             "email": user["email"],
             "name": user["name"],
+            "picture": user.get("picture"),
             "subscription_tier": user["subscription_tier"]
         }
     }
@@ -170,25 +253,34 @@ async def login(request: LoginRequest):
 
 @app.post("/api/auth/signup")
 async def signup(request: SignupRequest):
+    """Email/Password signup"""
     if request.email in users_store:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    user_id = f"user_{uuid.uuid4().hex[:8]}"
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
     users_store[request.email] = {
         "id": user_id,
         "email": request.email,
         "name": request.name,
         "password": request.password,
-        "subscription_tier": "free"
+        "picture": None,
+        "subscription_tier": "free",
+        "auth_provider": "email",
+        "created_at": datetime.utcnow().isoformat()
     }
     
+    token = generate_token(user_id)
+    
+    logger.info(f"New user registered: {request.email}")
+    
     return {
-        "access_token": f"token_{user_id}_{datetime.utcnow().timestamp()}",
+        "access_token": token,
         "token_type": "bearer",
         "user": {
             "id": user_id,
             "email": request.email,
             "name": request.name,
+            "picture": None,
             "subscription_tier": "free"
         }
     }
@@ -196,53 +288,138 @@ async def signup(request: SignupRequest):
 
 @app.post("/api/auth/google")
 async def google_auth(request: GoogleAuthRequest):
-    # Simplified Google OAuth - in production, verify the credential
-    user_id = f"google_{uuid.uuid4().hex[:8]}"
+    """
+    Google OAuth authentication.
+    Decodes the Google JWT credential and creates/updates user.
+    """
+    # Decode Google JWT to get user info
+    google_data = decode_google_jwt(request.credential)
+    
+    email = google_data.get("email")
+    name = google_data.get("name", "Google User")
+    picture = google_data.get("picture")
+    google_id = google_data.get("sub")  # Google's unique user ID
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="Email not provided by Google")
+    
+    # Check if user exists
+    existing_user = users_store.get(email)
+    
+    if existing_user:
+        # Update existing user's info
+        existing_user["name"] = name
+        existing_user["picture"] = picture
+        existing_user["last_login"] = datetime.utcnow().isoformat()
+        user = existing_user
+        logger.info(f"Google user logged in: {email}")
+    else:
+        # Create new user
+        user_id = f"google_{uuid.uuid4().hex[:12]}"
+        user = {
+            "id": user_id,
+            "email": email,
+            "name": name,
+            "picture": picture,
+            "google_id": google_id,
+            "subscription_tier": "free",  # New users start with free tier
+            "auth_provider": "google",
+            "created_at": datetime.utcnow().isoformat(),
+            "last_login": datetime.utcnow().isoformat()
+        }
+        users_store[email] = user
+        logger.info(f"New Google user registered: {email}")
+    
+    # Generate auth token
+    token = generate_token(user["id"])
+    
     return {
-        "access_token": f"token_{user_id}_{datetime.utcnow().timestamp()}",
+        "access_token": token,
         "token_type": "bearer",
         "user": {
-            "id": user_id,
-            "email": "google_user@gmail.com",
-            "name": "Google User",
-            "subscription_tier": "permanent"
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "picture": user.get("picture"),
+            "subscription_tier": user["subscription_tier"]
         }
     }
 
 
 @app.get("/api/auth/me")
-async def get_current_user(request: Request):
-    # Simplified auth - in production, verify the token
+async def get_current_user(authorization: Optional[str] = Header(None)):
+    """Get current authenticated user"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    user = get_user_from_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
     return {
-        "id": "demo-user-001",
-        "email": "demo@researchai.com",
-        "name": "Demo User",
-        "subscription_tier": "permanent"
+        "id": user["id"],
+        "email": user["email"],
+        "name": user["name"],
+        "picture": user.get("picture"),
+        "subscription_tier": user["subscription_tier"]
     }
 
 
 @app.get("/api/auth/verify")
-async def verify_token():
-    return {"valid": True}
+async def verify_token(authorization: Optional[str] = Header(None)):
+    """Verify if token is valid"""
+    if not authorization:
+        return {"valid": False}
+    
+    user = get_user_from_token(authorization)
+    return {"valid": user is not None}
 
 
 @app.post("/api/auth/logout")
-async def logout():
+async def logout(authorization: Optional[str] = Header(None)):
+    """Logout and invalidate token"""
+    if authorization:
+        token = authorization.replace("Bearer ", "")
+        if token in tokens_store:
+            del tokens_store[token]
     return {"message": "Logged out successfully"}
+
+
+# ============================================================================
+# User Management Endpoints
+# ============================================================================
+@app.get("/api/users/stats")
+async def get_user_stats():
+    """Get user statistics (admin endpoint)"""
+    total_users = len(users_store)
+    google_users = sum(1 for u in users_store.values() if u.get("auth_provider") == "google")
+    email_users = sum(1 for u in users_store.values() if u.get("auth_provider") == "email")
+    
+    return {
+        "total_users": total_users,
+        "google_users": google_users,
+        "email_users": email_users,
+        "active_sessions": len(tokens_store)
+    }
 
 
 # ============================================================================
 # Proposal Generation Endpoints
 # ============================================================================
 @app.post("/api/proposals/generate")
-async def generate_proposal(request: ProposalRequest):
+async def generate_proposal(request: ProposalRequest, authorization: Optional[str] = Header(None)):
     job_id = f"job_{uuid.uuid4().hex[:12]}"
+    
+    # Get user if authenticated
+    user = get_user_from_token(authorization) if authorization else None
+    user_id = user["id"] if user else "anonymous"
     
     # Create job entry
     jobs_store[job_id] = {
         "job_id": job_id,
+        "user_id": user_id,
         "topic": request.topic,
-        "status": "completed",  # For demo, mark as completed immediately
+        "status": "completed",
         "progress": 100,
         "current_stage": "completed",
         "stages_completed": [
@@ -263,6 +440,7 @@ async def generate_proposal(request: ProposalRequest):
     # Create demo proposal result
     proposals_store[job_id] = {
         "request_id": job_id,
+        "user_id": user_id,
         "topic": request.topic,
         "word_count": request.target_word_count or 15000,
         "sections": [
@@ -308,9 +486,16 @@ async def get_job_result(job_id: str):
 
 
 @app.get("/api/proposals/jobs")
-async def list_jobs(limit: int = 20):
-    jobs = list(jobs_store.values())[:limit]
-    return {"jobs": jobs, "total": len(jobs)}
+async def list_jobs(limit: int = 20, authorization: Optional[str] = Header(None)):
+    user = get_user_from_token(authorization) if authorization else None
+    
+    if user:
+        # Filter jobs for authenticated user
+        user_jobs = [j for j in jobs_store.values() if j.get("user_id") == user["id"]]
+    else:
+        user_jobs = list(jobs_store.values())
+    
+    return {"jobs": user_jobs[:limit], "total": len(user_jobs)}
 
 
 @app.get("/api/proposals/{request_id}/preview")
@@ -319,7 +504,6 @@ async def get_proposal_preview(request_id: str, subscription_tier: str = "perman
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found")
     
-    # Generate HTML preview
     html_content = f"""
     <html>
     <head><style>
@@ -353,7 +537,6 @@ async def export_proposal(request_id: str, format: str, subscription_tier: str =
             content += f"## {section['title']}\n\n{section['content']}\n\n"
         return JSONResponse(content={"content": content, "filename": f"{request_id}_proposal.md"})
     
-    # For PDF/DOCX, return a message (full implementation would require additional libraries)
     return JSONResponse(content={
         "message": f"Export to {format} format",
         "filename": f"{request_id}_proposal.{format}"
@@ -430,9 +613,9 @@ async def get_artifacts(job_id: str):
     return {
         "proposal_id": job_id,
         "topic": "Research Proposal",
-        "version": "2.4.0",
+        "version": "2.5.0",
         "artifacts": {
-            "version": "2.4.0",
+            "version": "2.5.0",
             "artifact_count": 4,
             "artifacts": [
                 {
@@ -457,7 +640,7 @@ async def get_artifacts(job_id: str):
 @app.get("/api/v2/toc/{job_id}")
 async def get_toc(job_id: str):
     return {
-        "version": "2.4.0",
+        "version": "2.5.0",
         "title": "Table of Contents",
         "entry_count": 8,
         "entries": [
@@ -534,7 +717,16 @@ async def get_subscription_tiers():
 
 
 @app.post("/api/subscription/upgrade")
-async def upgrade_subscription(tier: str):
+async def upgrade_subscription(tier: str, authorization: Optional[str] = Header(None)):
+    user = get_user_from_token(authorization) if authorization else None
+    
+    if user:
+        # Update user's subscription tier
+        for email, u in users_store.items():
+            if u["id"] == user["id"]:
+                users_store[email]["subscription_tier"] = tier
+                break
+    
     return {
         "success": True,
         "new_tier": tier,
@@ -558,5 +750,4 @@ async def test_llm():
 # ============================================================================
 # Vercel Handler
 # ============================================================================
-# This is the entry point for Vercel serverless functions
 handler = app
