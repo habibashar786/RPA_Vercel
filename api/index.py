@@ -1,13 +1,32 @@
-import json
-import uuid
+from fastapi import FastAPI, HTTPException, Header, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
+from typing import Optional, Dict, Any
 from datetime import datetime
+import uuid
+import json
 import base64
 
+# ============================================================================
+# FastAPI App - Vercel requires this to be named 'app'
+# ============================================================================
+app = FastAPI(title="ResearchAI API", version="2.5.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ============================================================================
 # Storage
-users_store = {
+# ============================================================================
+users_store: Dict[str, Any] = {
     "demo@researchai.com": {
         "id": "demo-user-001",
-        "email": "demo@researchai.com", 
+        "email": "demo@researchai.com",
         "name": "Demo User",
         "password": "demo123",
         "picture": None,
@@ -15,16 +34,19 @@ users_store = {
         "auth_provider": "email"
     }
 }
-tokens_store = {}
-jobs_store = {}
-proposals_store = {}
+tokens_store: Dict[str, str] = {}
+jobs_store: Dict[str, Any] = {}
+proposals_store: Dict[str, Any] = {}
 
-def generate_token(user_id):
+# ============================================================================
+# Helpers
+# ============================================================================
+def generate_token(user_id: str) -> str:
     token = f"tk_{uuid.uuid4().hex[:32]}"
     tokens_store[token] = user_id
     return token
 
-def get_user_from_token(auth_header):
+def get_user_from_token(auth_header: Optional[str]) -> Optional[Dict]:
     if not auth_header:
         return None
     token = auth_header.replace("Bearer ", "")
@@ -36,7 +58,7 @@ def get_user_from_token(auth_header):
             return user
     return None
 
-def decode_google_jwt(token):
+def decode_google_jwt(token: str) -> Optional[Dict]:
     try:
         parts = token.split('.')
         if len(parts) != 3:
@@ -50,250 +72,159 @@ def decode_google_jwt(token):
     except:
         return None
 
-def handler(request):
-    """Vercel Serverless Function Handler"""
+# ============================================================================
+# Routes
+# ============================================================================
+@app.get("/")
+async def root():
+    return {"message": "ResearchAI API", "version": "2.5.0", "status": "online"}
+
+@app.get("/health")
+@app.get("/api/health")
+async def health():
+    return {"status": "healthy", "version": "2.5.0", "timestamp": datetime.utcnow().isoformat()}
+
+@app.get("/api/system/status")
+async def system_status():
+    return {"status": "operational", "agents_count": 12, "version": "2.5.0"}
+
+@app.get("/agents")
+@app.get("/api/agents")
+async def list_agents():
+    return {"agents": [{"name": f"Agent {i}", "status": "active"} for i in range(1, 13)], "total": 12}
+
+# Auth endpoints
+@app.post("/api/auth/login")
+async def login(request: Request):
+    body = await request.json()
+    email = body.get("email", "")
+    password = body.get("password", "")
+    user = users_store.get(email)
+    if not user or user.get("password") != password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = generate_token(user["id"])
+    return {"access_token": token, "token_type": "bearer", "user": {"id": user["id"], "email": user["email"], "name": user["name"], "picture": user.get("picture"), "subscription_tier": user["subscription_tier"]}}
+
+@app.post("/api/auth/signup")
+async def signup(request: Request):
+    body = await request.json()
+    email = body.get("email", "")
+    if email in users_store:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    users_store[email] = {"id": user_id, "email": email, "name": body.get("name", ""), "password": body.get("password", ""), "picture": None, "subscription_tier": "free", "auth_provider": "email"}
+    token = generate_token(user_id)
+    return {"access_token": token, "token_type": "bearer", "user": {"id": user_id, "email": email, "name": body.get("name", ""), "picture": None, "subscription_tier": "free"}}
+
+@app.post("/api/auth/google")
+async def google_auth(request: Request):
+    body = await request.json()
+    credential = body.get("credential", "")
+    google_data = decode_google_jwt(credential)
+    if not google_data:
+        raise HTTPException(status_code=400, detail="Invalid credential")
+    email = google_data.get("email")
+    name = google_data.get("name", "Google User")
+    picture = google_data.get("picture")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email not provided")
     
-    # Get request info
-    method = request.method
-    path = request.path or "/"
+    if email in users_store:
+        user = users_store[email]
+        user["name"] = name
+        user["picture"] = picture
+    else:
+        user_id = f"google_{uuid.uuid4().hex[:12]}"
+        user = {"id": user_id, "email": email, "name": name, "picture": picture, "subscription_tier": "free", "auth_provider": "google"}
+        users_store[email] = user
     
-    # CORS headers
-    headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Content-Type": "application/json"
-    }
-    
-    # Handle OPTIONS (CORS preflight)
-    if method == "OPTIONS":
-        return {"statusCode": 200, "headers": headers, "body": ""}
-    
-    # Parse body for POST requests
-    body = {}
-    if method == "POST":
-        try:
-            body = json.loads(request.body) if request.body else {}
-        except:
-            body = {}
-    
-    # Get auth header
-    auth = request.headers.get("authorization") or request.headers.get("Authorization")
-    
-    # ============== ROUTES ==============
-    
-    # Health check
-    if path in ["/", "/health", "/api/health"]:
-        return {
-            "statusCode": 200,
-            "headers": headers,
-            "body": json.dumps({
-                "status": "healthy",
-                "version": "2.5.0",
-                "timestamp": datetime.utcnow().isoformat(),
-                "users_count": len(users_store)
-            })
-        }
-    
-    # System status
-    if path == "/api/system/status":
-        return {
-            "statusCode": 200,
-            "headers": headers,
-            "body": json.dumps({"status": "operational", "agents_count": 12, "version": "2.5.0"})
-        }
-    
-    # Agents list
-    if path in ["/agents", "/api/agents"]:
-        return {
-            "statusCode": 200,
-            "headers": headers,
-            "body": json.dumps({
-                "agents": [{"name": f"Agent {i}", "status": "active"} for i in range(1, 13)],
-                "total": 12
-            })
-        }
-    
-    # Auth: Login
-    if path == "/api/auth/login" and method == "POST":
-        email = body.get("email", "")
-        password = body.get("password", "")
-        user = users_store.get(email)
-        
-        if not user or user.get("password") != password:
-            return {"statusCode": 401, "headers": headers, "body": json.dumps({"detail": "Invalid credentials"})}
-        
-        token = generate_token(user["id"])
-        return {
-            "statusCode": 200,
-            "headers": headers,
-            "body": json.dumps({
-                "access_token": token,
-                "token_type": "bearer",
-                "user": {
-                    "id": user["id"],
-                    "email": user["email"],
-                    "name": user["name"],
-                    "picture": user.get("picture"),
-                    "subscription_tier": user["subscription_tier"]
-                }
-            })
-        }
-    
-    # Auth: Signup
-    if path == "/api/auth/signup" and method == "POST":
-        email = body.get("email", "")
-        if email in users_store:
-            return {"statusCode": 400, "headers": headers, "body": json.dumps({"detail": "Email already registered"})}
-        
-        user_id = f"user_{uuid.uuid4().hex[:12]}"
-        users_store[email] = {
-            "id": user_id,
-            "email": email,
-            "name": body.get("name", ""),
-            "password": body.get("password", ""),
-            "picture": None,
-            "subscription_tier": "free",
-            "auth_provider": "email"
-        }
-        token = generate_token(user_id)
-        return {
-            "statusCode": 200,
-            "headers": headers,
-            "body": json.dumps({
-                "access_token": token,
-                "token_type": "bearer",
-                "user": {"id": user_id, "email": email, "name": body.get("name", ""), "picture": None, "subscription_tier": "free"}
-            })
-        }
-    
-    # Auth: Google
-    if path == "/api/auth/google" and method == "POST":
-        credential = body.get("credential", "")
-        google_data = decode_google_jwt(credential)
-        
-        if not google_data:
-            return {"statusCode": 400, "headers": headers, "body": json.dumps({"detail": "Invalid credential"})}
-        
-        email = google_data.get("email")
-        name = google_data.get("name", "Google User")
-        picture = google_data.get("picture")
-        
-        if not email:
-            return {"statusCode": 400, "headers": headers, "body": json.dumps({"detail": "Email not provided"})}
-        
-        if email in users_store:
-            user = users_store[email]
-            user["name"] = name
-            user["picture"] = picture
-        else:
-            user_id = f"google_{uuid.uuid4().hex[:12]}"
-            user = {"id": user_id, "email": email, "name": name, "picture": picture, "subscription_tier": "free", "auth_provider": "google"}
-            users_store[email] = user
-        
-        token = generate_token(user["id"])
-        return {
-            "statusCode": 200,
-            "headers": headers,
-            "body": json.dumps({
-                "access_token": token,
-                "token_type": "bearer",
-                "user": {"id": user["id"], "email": user["email"], "name": user["name"], "picture": user.get("picture"), "subscription_tier": user["subscription_tier"]}
-            })
-        }
-    
-    # Auth: Me
-    if path == "/api/auth/me":
-        user = get_user_from_token(auth)
-        if not user:
-            return {"statusCode": 401, "headers": headers, "body": json.dumps({"detail": "Not authenticated"})}
-        return {
-            "statusCode": 200,
-            "headers": headers,
-            "body": json.dumps({"id": user["id"], "email": user["email"], "name": user["name"], "picture": user.get("picture"), "subscription_tier": user["subscription_tier"]})
-        }
-    
-    # Auth: Verify
-    if path == "/api/auth/verify":
-        user = get_user_from_token(auth)
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"valid": user is not None})}
-    
-    # Auth: Logout
-    if path == "/api/auth/logout":
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"message": "Logged out"})}
-    
-    # Proposals: Generate
-    if path == "/api/proposals/generate" and method == "POST":
-        topic = body.get("topic", "Research Topic")
-        job_id = f"job_{uuid.uuid4().hex[:12]}"
-        jobs_store[job_id] = {"job_id": job_id, "topic": topic, "status": "completed", "progress": 100, "created_at": datetime.utcnow().isoformat()}
-        proposals_store[job_id] = {"request_id": job_id, "topic": topic, "word_count": body.get("target_word_count", 15000), "sections": [{"title": "Abstract", "content": f"Research on {topic}"}], "generated_at": datetime.utcnow().isoformat()}
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"job_id": job_id, "topic": topic, "status": "completed", "progress": 100})}
-    
-    # Proposals: Jobs list
-    if path == "/api/proposals/jobs":
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"jobs": list(jobs_store.values()), "total": len(jobs_store)})}
-    
-    # Proposals: Job by ID
-    if path.startswith("/api/proposals/jobs/") and "/result" not in path:
-        job_id = path.split("/")[-1]
-        job = jobs_store.get(job_id)
-        if not job:
-            return {"statusCode": 404, "headers": headers, "body": json.dumps({"detail": "Not found"})}
-        return {"statusCode": 200, "headers": headers, "body": json.dumps(job)}
-    
-    # Proposals: Job result
-    if "/result" in path:
-        job_id = path.split("/")[-2]
-        proposal = proposals_store.get(job_id)
-        if not proposal:
-            return {"statusCode": 404, "headers": headers, "body": json.dumps({"detail": "Not found"})}
-        return {"statusCode": 200, "headers": headers, "body": json.dumps(proposal)}
-    
-    # Preview
-    if "/preview" in path:
-        parts = path.split("/")
-        request_id = parts[-2] if len(parts) > 2 else None
-        proposal = proposals_store.get(request_id)
-        if not proposal:
-            return {"statusCode": 404, "headers": headers, "body": json.dumps({"detail": "Not found"})}
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"html": f"<h1>{proposal['topic']}</h1>", "word_count": proposal.get("word_count", 15000)})}
-    
-    # Scopus
-    if "/scopus/compliance/" in path:
-        job_id = path.split("/")[-1]
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"job_id": job_id, "overall_score": 0.87, "q1_ready": True})}
-    
-    # Review
-    if "/review/simulate/" in path:
-        job_id = path.split("/")[-1]
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"job_id": job_id, "overall_assessment": "minor_revision", "consensus_score": 82.5})}
-    
-    # Artifacts
-    if "/artifacts/" in path:
-        job_id = path.split("/")[-1]
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"proposal_id": job_id, "artifacts": []})}
-    
-    # TOC
-    if "/toc/" in path:
-        job_id = path.split("/")[-1]
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"title": "TOC", "entries": []})}
-    
-    # Validation
-    if path == "/api/v2/validation/validate":
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"passed": True, "similarity_score": 12.5})}
-    
-    # Subscription tiers
-    if path == "/api/subscription/tiers":
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"tiers": [{"id": "free", "price": 0}, {"id": "premium", "price": 19.99}]})}
-    
-    # Subscription upgrade
-    if path == "/api/subscription/upgrade":
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"success": True})}
-    
-    # Test LLM
-    if path == "/api/test/llm":
-        return {"statusCode": 200, "headers": headers, "body": json.dumps({"status": "operational"})}
-    
-    # Not found
-    return {"statusCode": 404, "headers": headers, "body": json.dumps({"detail": "Not found", "path": path})}
+    token = generate_token(user["id"])
+    return {"access_token": token, "token_type": "bearer", "user": {"id": user["id"], "email": user["email"], "name": user["name"], "picture": user.get("picture"), "subscription_tier": user["subscription_tier"]}}
+
+@app.get("/api/auth/me")
+async def get_me(authorization: Optional[str] = Header(None)):
+    user = get_user_from_token(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return {"id": user["id"], "email": user["email"], "name": user["name"], "picture": user.get("picture"), "subscription_tier": user["subscription_tier"]}
+
+@app.get("/api/auth/verify")
+async def verify(authorization: Optional[str] = Header(None)):
+    return {"valid": get_user_from_token(authorization) is not None}
+
+@app.post("/api/auth/logout")
+async def logout():
+    return {"message": "Logged out"}
+
+# Proposal endpoints
+@app.post("/api/proposals/generate")
+async def generate_proposal(request: Request):
+    body = await request.json()
+    topic = body.get("topic", "Research Topic")
+    job_id = f"job_{uuid.uuid4().hex[:12]}"
+    jobs_store[job_id] = {"job_id": job_id, "topic": topic, "status": "completed", "progress": 100, "created_at": datetime.utcnow().isoformat()}
+    proposals_store[job_id] = {"request_id": job_id, "topic": topic, "word_count": body.get("target_word_count", 15000), "sections": [{"title": "Abstract", "content": f"Research on {topic}"}], "generated_at": datetime.utcnow().isoformat()}
+    return {"job_id": job_id, "topic": topic, "status": "completed", "progress": 100}
+
+@app.get("/api/proposals/jobs")
+async def list_jobs():
+    return {"jobs": list(jobs_store.values()), "total": len(jobs_store)}
+
+@app.get("/api/proposals/jobs/{job_id}")
+async def get_job(job_id: str):
+    job = jobs_store.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Not found")
+    return job
+
+@app.get("/api/proposals/jobs/{job_id}/result")
+async def get_result(job_id: str):
+    proposal = proposals_store.get(job_id)
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Not found")
+    return proposal
+
+@app.get("/api/proposals/{request_id}/preview")
+async def preview(request_id: str):
+    proposal = proposals_store.get(request_id)
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"html": f"<h1>{proposal['topic']}</h1>", "word_count": proposal.get("word_count", 15000)}
+
+@app.get("/api/proposals/{request_id}/export/{fmt}")
+async def export(request_id: str, fmt: str):
+    return {"message": f"Export to {fmt}", "filename": f"{request_id}.{fmt}"}
+
+# Scopus & Review endpoints
+@app.get("/api/v2/scopus/compliance/{job_id}")
+async def scopus(job_id: str):
+    return {"job_id": job_id, "overall_score": 0.87, "q1_ready": True}
+
+@app.get("/api/v2/review/simulate/{job_id}")
+async def review(job_id: str):
+    return {"job_id": job_id, "overall_assessment": "minor_revision", "consensus_score": 82.5}
+
+@app.get("/api/v2/artifacts/{job_id}")
+async def artifacts(job_id: str):
+    return {"proposal_id": job_id, "artifacts": []}
+
+@app.get("/api/v2/toc/{job_id}")
+async def toc(job_id: str):
+    return {"title": "TOC", "entries": []}
+
+@app.post("/api/v2/validation/validate")
+async def validate():
+    return {"passed": True, "similarity_score": 12.5}
+
+# Subscription endpoints
+@app.get("/api/subscription/tiers")
+async def tiers():
+    return {"tiers": [{"id": "free", "price": 0}, {"id": "premium", "price": 19.99}]}
+
+@app.post("/api/subscription/upgrade")
+async def upgrade():
+    return {"success": True}
+
+@app.get("/api/test/llm")
+async def test_llm():
+    return {"status": "operational"}
